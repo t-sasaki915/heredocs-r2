@@ -364,16 +364,17 @@ class ToQExp a where
     concatToQExp :: [a] -> Q Exp
 
 instance ToQExp Expr where
-    toQExp (S s) = litE (stringL s)
-    toQExp (I i) = litE (integerL i)
-    toQExp W     = error "wildcard is NOT legal expression"
-    toQExp (V v) = varE (mkName v)
-    toQExp (O o) = varE (mkName o)
-    toQExp (E e) = concatToQExp e
-    toQExp (C c) = conE (mkName c)
-    toQExp (T t) = tupE $ map concatToQExp t
-    toQExp N     = listE []
-    toQExp (L l) = listE $ map concatToQExp l
+    toQExp (S s)   = litE (stringL s)
+    toQExp (I i)   = litE (integerL i)
+    toQExp W       = error "wildcard is NOT legal expression"
+    toQExp (V v)   = varE (mkName v)
+    toQExp (O o)   = varE (mkName o)
+    toQExp (E e)   = concatToQExp e
+    toQExp (C c)   = conE (mkName c)
+    toQExp (T [t]) = concatToQExp t
+    toQExp (T t)   = tupE $ map concatToQExp t
+    toQExp N       = listE []
+    toQExp (L l)   = listE $ map concatToQExp l
 
     concatToQExp xs = concatToQ' Nothing xs
         where
