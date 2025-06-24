@@ -338,14 +338,15 @@ class ToQPat a where
     concatToQPat :: [a] -> Q Pat
 
 instance ToQPat Expr where
-    toQPat (S s) = litP (stringL s)
-    toQPat (I i) = litP (integerL i)
-    toQPat W     = wildP
-    toQPat (V v) = varP (mkName v)
-    toQPat (O o) = varP (mkName o)
-    toQPat (E e) = concatToQPat e
-    toQPat (C c) = conP (mkName c) []
-    toQPat (T t) = tupP $ map concatToQPat t
+    toQPat (S s)   = litP (stringL s)
+    toQPat (I i)   = litP (integerL i)
+    toQPat W       = wildP
+    toQPat (V v)   = varP (mkName v)
+    toQPat (O o)   = varP (mkName o)
+    toQPat (E e)   = concatToQPat e
+    toQPat (C c)   = conP (mkName c) []
+    toQPat (T [t]) = concatToQPat t
+    toQPat (T t)   = tupP $ map concatToQPat t
     toQPat (A a e) = asP (mkName a) $ toQPat e
 
     -- special case for list
