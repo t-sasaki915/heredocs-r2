@@ -338,14 +338,15 @@ class ToQPat a where
     concatToQPat :: [a] -> Q Pat
 
 instance ToQPat Expr where
-    toQPat (S s) = litP (stringL s)
-    toQPat (I i) = litP (integerL i)
-    toQPat W     = wildP
-    toQPat (V v) = varP (mkName v)
-    toQPat (O o) = varP (mkName o)
-    toQPat (E e) = concatToQPat e
-    toQPat (C c) = conP (mkName c) []
-    toQPat (T t) = tupP $ map concatToQPat t
+    toQPat (S s)   = litP (stringL s)
+    toQPat (I i)   = litP (integerL i)
+    toQPat W       = wildP
+    toQPat (V v)   = varP (mkName v)
+    toQPat (O o)   = varP (mkName o)
+    toQPat (E e)   = concatToQPat e
+    toQPat (C c)   = conP (mkName c) []
+    toQPat (T [t]) = concatToQPat t
+    toQPat (T t)   = tupP $ map concatToQPat t
     toQPat (A a e) = asP (mkName a) $ toQPat e
 
     -- special case for list
@@ -364,16 +365,17 @@ class ToQExp a where
     concatToQExp :: [a] -> Q Exp
 
 instance ToQExp Expr where
-    toQExp (S s) = litE (stringL s)
-    toQExp (I i) = litE (integerL i)
-    toQExp W     = error "wildcard is NOT legal expression"
-    toQExp (V v) = varE (mkName v)
-    toQExp (O o) = varE (mkName o)
-    toQExp (E e) = concatToQExp e
-    toQExp (C c) = conE (mkName c)
-    toQExp (T t) = tupE $ map concatToQExp t
-    toQExp N     = listE []
-    toQExp (L l) = listE $ map concatToQExp l
+    toQExp (S s)   = litE (stringL s)
+    toQExp (I i)   = litE (integerL i)
+    toQExp W       = error "wildcard is NOT legal expression"
+    toQExp (V v)   = varE (mkName v)
+    toQExp (O o)   = varE (mkName o)
+    toQExp (E e)   = concatToQExp e
+    toQExp (C c)   = conE (mkName c)
+    toQExp (T [t]) = concatToQExp t
+    toQExp (T t)   = tupE $ map concatToQExp t
+    toQExp N       = listE []
+    toQExp (L l)   = listE $ map concatToQExp l
 
     concatToQExp xs = concatToQ' Nothing xs
         where
