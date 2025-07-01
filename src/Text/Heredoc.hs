@@ -1,22 +1,29 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# OPTIONS_GHC -fno-warn-missing-fields #-}
-module Text.Heredoc ( heredoc
-                    , heredocFile
-                    ) where
+{-# LANGUAGE TemplateHaskell   #-}
 
-import Control.Applicative ((<$>), (<*>))
-import Control.Arrow ((***))
-import Data.Function (on)
-import Data.List (intercalate)
-import Data.Monoid ((<>))
-import Text.ParserCombinators.Parsec hiding (Line)
-import Text.ParserCombinators.Parsec.Error
-import Language.Haskell.TH
-import Language.Haskell.TH.Quote
+module Text.Heredoc
+    ( heredoc
+    , heredocFile
+    ) where
+
+import           Control.Applicative                 ((<$>), (<*>))
+import           Control.Arrow                       ((***))
+import           Data.Function                       (on)
+import           Data.List                           (intercalate)
+import           Data.Monoid                         ((<>))
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Quote
+import           Text.ParserCombinators.Parsec       hiding (Line)
+import           Text.ParserCombinators.Parsec.Error (errorMessages,
+                                                      messageString)
 
 heredoc :: QuasiQuoter
-heredoc = QuasiQuoter { quoteExp = heredocFromString }
+heredoc = QuasiQuoter
+    { quoteExp  = heredocFromString
+    , quotePat  = undefined
+    , quoteType = undefined
+    , quoteDec  = undefined
+    }
 
 heredocFile :: FilePath -> Q Exp
 heredocFile fp = do
@@ -202,8 +209,6 @@ modul = try (intercalate "." <$> many1 (mod' <* char '.')) <|> mod'
       mod' :: Parser String
       mod' = (:) <$> upper <*> many alphaNum
 
-
-
 var' :: Parser String
 var' = char '`' *> var <* char '`'
 
@@ -235,16 +240,15 @@ raw' = Raw <$> ((:) <$> (char '$')
 raw :: Parser InLine
 raw = Raw <$> many1 (noneOf "$\n\r")
 
-----
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
 arrange = norm . rev . foldl (flip push) []
     where
       isCtrlNothing (_, CtrlNothing) = True
-      isCtrlNothing _ = False
+      isCtrlNothing _                = False
       isCtrlElse (_, CtrlElse) = True
-      isCtrlElse _ = False
+      isCtrlElse _             = False
       isCtrlOf (_, CtrlOf _) = True
-      isCtrlOf _ = False
+      isCtrlOf _             = False
 
       push :: Line' -> [Line'] -> [Line']
       push x [] = x:[]
@@ -289,8 +293,8 @@ arrange = norm . rev . foldl (flip push) []
       push x ((j, CtrlOf _):_) = error "orphan $of found"
 
       push' x@(i, CtrlOf e) alts = (e, []):alts
-      push' x [] = error "$of not found"
-      push' x ((e, body):alts) = (e, (push x body)):alts
+      push' x []                 = error "$of not found"
+      push' x ((e, body):alts)   = (e, (push x body)):alts
 
       rev :: [Line'] -> [Line']
       rev = foldr (\x xs -> xs ++ [rev' x]) []
@@ -399,7 +403,7 @@ instance ToQExp Expr where
               = concatToQ' (Just (appE acc (toQExp x))) xs
 
 instance ToQExp InLine where
-    toQExp (Raw s) = litE (stringL s)
+    toQExp (Raw s)       = litE (stringL s)
     toQExp (Quoted expr) = concatToQExp expr
 
     concatToQExp [] = litE (stringL "")
