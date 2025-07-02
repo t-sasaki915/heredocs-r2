@@ -1,7 +1,7 @@
 cabal-version: 2.2
 
 name:           heredocs
-version:        0.2.1.1
+version:        0.2.2.0
 description:    A heredocument library supports shakespeare-like syntax.
 synopsis:       Heredocument on Haskell
 homepage:       https://github.com/t-sasaki915/heredocs#readme
