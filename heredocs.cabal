@@ -28,11 +28,9 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
-    , bytestring >= 0.12.1.0
-    , doctest >= 0.22.6
-    , parsec >=3.1.18.0
-    , template-haskell >=2.23.0.0
-    , text >= 2.1.2
+    , parsec >=3.1 && <3.2
+    , template-haskell >=2.23 && <3
+    , text >=2 && <3
   default-language: Haskell2010
 
 test-suite heredocs-test
@@ -44,7 +42,7 @@ test-suite heredocs-test
   build-depends:
       heredocs
     , base >=4.7 && <5
-    , bytestring >= 0.12.1.0
-    , doctest >= 0.22.6
-    , text >= 2.1.2
+    , doctest >=0.20 && <0.30
+    , bytestring >=2 && <3
+    , text
   default-language: Haskell2010
