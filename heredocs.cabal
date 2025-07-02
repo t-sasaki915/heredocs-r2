@@ -7,7 +7,7 @@ synopsis:       Heredocument on Haskell
 homepage:       https://github.com/t-sasaki915/heredocs#readme
 bug-reports:    https://github.com/t-sasaki915/heredocs/issues
 author:         cutsea110
-maintainer:     cutsea110@gmail.com, netst915@gmail.com
+maintainer:     netst915@gmail.com
 copyright:      Copyright (c) 2016, cutsea110        
 category:       Text
 license:        BSD-3-Clause
