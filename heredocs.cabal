@@ -32,17 +32,21 @@ library
     , template-haskell >=2.23 && <3
     , text >=2 && <3
   default-language: Haskell2010
+  default-extensions: OverloadedStrings, LambdaCase, QuasiQuotes
 
 test-suite heredocs-test
   type: exitcode-stdio-1.0
-  main-is: doctests.hs
+  main-is: Spec.hs
+  other-modules:
+      Text.HeredocSpec
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       heredocs
     , base >=4.7 && <5
-    , doctest >=0.20 && <0.30
-    , bytestring >=2 && <3
+    , hspec >=2 && <3
+    , bytestring >=0.12 && <0.13
     , text
   default-language: Haskell2010
+  default-extensions: OverloadedStrings, LambdaCase, QuasiQuotes
