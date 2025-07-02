@@ -6,13 +6,10 @@ module Text.Heredoc
     , heredocFile
     ) where
 
-import           Control.Applicative                 ((<$>), (<*>))
 import           Control.Arrow                       ((***))
-import           Data.Function                       (on)
 import           Data.List                           (intercalate)
-import           Data.Monoid                         ((<>))
 import           Language.Haskell.TH
-import           Language.Haskell.TH.Quote
+import           Language.Haskell.TH.Quote           (QuasiQuoter (..))
 import           Text.ParserCombinators.Parsec       hiding (Line)
 import           Text.ParserCombinators.Parsec.Error (errorMessages,
                                                       messageString)
@@ -271,7 +268,7 @@ arrange = norm . rev . foldl (flip push) []
                 then error "too many $nothing found"
                 else (j, CtrlMaybe True b e body alt):ss
           | otherwise = x:ss'
-      push x ((j, CtrlNothing):_) = error "orphan $nothing found"
+      push _ ((_, CtrlNothing):_) = error "orphan $nothing found"
 
       push x@(i, _) ss'@((j, CtrlIf flg e body alt):ss)
           | i > j = if flg
@@ -282,7 +279,7 @@ arrange = norm . rev . foldl (flip push) []
                 then error "too many $else found"
                 else (j, CtrlIf True e body alt):ss
           | otherwise = x:ss'
-      push x ((j, CtrlElse):_) = error "orphan $else found"
+      push _ ((_, CtrlElse):_) = error "orphan $else found"
 
       push x@(i, _) ss'@((j, CtrlCase e alts):ss)
           | i > j = (j, CtrlCase e (push' x alts)):ss
@@ -290,11 +287,11 @@ arrange = norm . rev . foldl (flip push) []
             = if isCtrlOf x
               then error "orphan $of found"
               else x:ss'
-      push x ((j, CtrlOf _):_) = error "orphan $of found"
+      push _ ((_, CtrlOf _):_) = error "orphan $of found"
 
-      push' x@(i, CtrlOf e) alts = (e, []):alts
-      push' x []                 = error "$of not found"
-      push' x ((e, body):alts)   = (e, (push x body)):alts
+      push' __@(_, CtrlOf e) alts = (e, []):alts
+      push' _ []                  = error "$of not found"
+      push' x ((e, body):alts)    = (e, (push x body)):alts
 
       rev :: [Line'] -> [Line']
       rev = foldr (\x xs -> xs ++ [rev' x]) []
@@ -310,6 +307,12 @@ arrange = norm . rev . foldl (flip push) []
           = (i, CtrlIf flg e (rev body) (rev alt))
       rev' (i, CtrlCase e alts)
           = (i, CtrlCase e (map (id *** rev) $ reverse alts))
+      rev' (_, CtrlNothing)
+          = error "impossible"
+      rev' (_, CtrlElse)
+          = error "impossible"
+      rev' (_, (CtrlOf _))
+          = error "impossible"
 
       norm :: [Line'] -> [Line']
       norm = foldr (\x xs -> norm' x:xs) []
@@ -321,13 +324,13 @@ arrange = norm . rev . foldl (flip push) []
           = (i, CtrlLet b e (normsub i body ++ blockEnd))
       norm' (i, CtrlMaybe flg b e body alt)
           = (i, CtrlMaybe flg b e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
-      norm' (i, CtrlNothing) = error "orphan $nothing found"
+      norm' (_, CtrlNothing) = error "orphan $nothing found"
       norm' (i, CtrlIf flg e body alt)
           = (i, CtrlIf flg e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
-      norm' (i, CtrlElse) = error "orphan $else found"
+      norm' (_, CtrlElse) = error "orphan $else found"
       norm' (i, CtrlCase e alts)
           = (i, CtrlCase e (map (id *** (++ blockEnd) . normsub i) alts))
-      norm' (i, CtrlOf _) = error "orphan $of found"
+      norm' (_, CtrlOf _) = error "orphan $of found"
 
       normsub :: Indent -> [Line'] -> [Line']
       normsub i body = let j = minimum $ map fst body
@@ -352,14 +355,18 @@ instance ToQPat Expr where
     toQPat (T [t]) = concatToQPat t
     toQPat (T t)   = tupP $ map concatToQPat t
     toQPat (A a e) = asP (mkName a) $ toQPat e
+    toQPat (V' _)  = error "impossible"
+    toQPat (O' _)  = error "impossible"
+    toQPat (L _)   = error "impossible"
+    toQPat N       = error "impossible"
 
     -- special case for list
     concatToQPat (x:O ":":xs) = infixP (toQPat x)
                                        (mkName ":")
                                        (concatToQPat xs)
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
-    concatToQPat ((V v):args) = varP (mkName v) -- OK?
-    concatToQPat (p@(T t):[]) = toQPat p -- OK?
+    concatToQPat ((V v):_) = varP (mkName v) -- OK?
+    concatToQPat (p@(T _):[]) = toQPat p -- OK?
     concatToQPat (W:[]) = wildP -- OK?
     concatToQPat (p@(A _ _):[]) = toQPat p
     concatToQPat _ = error "don't support this pattern"
@@ -380,31 +387,35 @@ instance ToQExp Expr where
     toQExp (T t)   = tupE $ map concatToQExp t
     toQExp N       = listE []
     toQExp (L l)   = listE $ map concatToQExp l
+    toQExp (A _ _) = error "impossible"
+    toQExp (V' _)  = error "impossible"
+    toQExp (O' _)  = error "impossible"
 
     concatToQExp xs = concatToQ' Nothing xs
         where
           concatToQ' (Just acc) [] = acc
           concatToQ' Nothing  [x] = toQExp x
-          concatToQ' Nothing (x:xs) = concatToQ' (Just (toQExp x)) xs
+          concatToQ' Nothing (x:xs') = concatToQ' (Just (toQExp x)) xs'
           -- spacial case for list
-          concatToQ' (Just acc) ((O ":"):xs)
+          concatToQ' (Just acc) ((O ":"):xs')
               = infixE (Just acc)
                        (conE (mkName ":"))
-                       (Just (concatToQExp xs))
-          concatToQ' (Just acc) ((O o):xs)
+                       (Just (concatToQExp xs'))
+          concatToQ' (Just acc) ((O o):xs')
               = infixE (Just acc)
                        (varE (mkName o))
-                       (Just (concatToQExp xs))
-          concatToQ' (Just acc) ((V' v'):xs)
+                       (Just (concatToQExp xs'))
+          concatToQ' (Just acc) ((V' v'):xs')
               = infixE (Just acc)
                        (varE (mkName v'))
-                       (Just (concatToQExp xs))
-          concatToQ' (Just acc) (x:xs)
-              = concatToQ' (Just (appE acc (toQExp x))) xs
+                       (Just (concatToQExp xs'))
+          concatToQ' (Just acc) (x:xs')
+              = concatToQ' (Just (appE acc (toQExp x))) xs'
+          concatToQ' Nothing [] = error "impossible"
 
 instance ToQExp InLine where
-    toQExp (Raw s)       = litE (stringL s)
-    toQExp (Quoted expr) = concatToQExp expr
+    toQExp (Raw s)        = litE (stringL s)
+    toQExp (Quoted expr') = concatToQExp expr'
 
     concatToQExp [] = litE (stringL "")
     concatToQExp (x:xs) = infixE (Just (toQExp x))
@@ -420,7 +431,7 @@ instance ToQExp Line where
                                          Nothing)))
                 (litE (stringL "")))
           (concatToQExp e)
-    toQExp (CtrlMaybe flg b e body alt)
+    toQExp (CtrlMaybe _ b e body alt)
         = caseE (concatToQExp e)
                 [ match (conP 'Just [concatToQPat b])
                         (normalB (concatToQExp body))
@@ -429,7 +440,7 @@ instance ToQExp Line where
                         (normalB (concatToQExp alt))
                          []
                 ]
-    toQExp (CtrlIf flg e body alt)
+    toQExp (CtrlIf _ e body alt)
         = condE (concatToQExp e) (concatToQExp body) (concatToQExp alt)
     toQExp CtrlElse = error "illegal $else found"
     toQExp (CtrlCase e alts)
@@ -438,23 +449,25 @@ instance ToQExp Line where
           mkMatch (e', body) = match (concatToQPat e')
                                      (normalB (concatToQExp body))
                                      []
-    toQExp (CtrlOf e) = error "illegal $of found"
+    toQExp (CtrlOf _) = error "illegal $of found"
     toQExp (CtrlLet b e body)
         = letE [valD (concatToQPat b) (normalB $ concatToQExp e) []]
                (concatToQExp body)
     toQExp (Normal xs) = concatToQExp xs
+    toQExp CtrlNothing = error "impossible"
 
     concatToQExp (x:[]) = toQExp x
     concatToQExp (x:xs) = infixE (Just (toQExp x))
                                  (varE '(<>))
                                  (Just (concatToQExp xs))
+    concatToQExp []     = error "impossible"
 
 instance ToQExp Line' where
     toQExp (n, x@(Normal _))
         = infixE (Just (litE (stringL (replicate n ' '))))
                  (varE '(<>))
                  (Just (toQExp x))
-    toQExp (n, x) =  toQExp x -- Ctrl*
+    toQExp (_, x) =  toQExp x -- Ctrl*
 
     concatToQExp [] = litE (stringL "")
     concatToQExp (x@(_, Normal _):y:ys)
