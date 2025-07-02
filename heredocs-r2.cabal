@@ -1,12 +1,12 @@
 cabal-version: 2.2
 
-name:           heredocs
+name:           heredocs-r2
 version:        0.2.2.0
 description:    A heredocument library supports shakespeare-like syntax.
 synopsis:       Heredocument on Haskell
-homepage:       https://github.com/t-sasaki915/heredocs#readme
-bug-reports:    https://github.com/t-sasaki915/heredocs/issues
-author:         cutsea110
+homepage:       https://github.com/t-sasaki915/heredocs-r2#readme
+bug-reports:    https://github.com/t-sasaki915/heredocs-r2/issues
+author:         cutsea110, Toma Sasaki
 maintainer:     netst915@gmail.com
 copyright:      Copyright (c) 2016, cutsea110        
 category:       Text
@@ -19,7 +19,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/t-sasaki915/heredocs
+  location: https://github.com/t-sasaki915/heredocs-r2
 
 library
   exposed-modules:     
@@ -35,7 +35,7 @@ library
   default-language: Haskell2010
   default-extensions: OverloadedStrings, LambdaCase, QuasiQuotes
 
-test-suite heredocs-test
+test-suite heredocs-r2-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
@@ -44,7 +44,7 @@ test-suite heredocs-test
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      heredocs
+      heredocs-r2
     , base >=4.7 && <5
     , hspec >=2 && <3
     , bytestring >=0.12 && <0.13
