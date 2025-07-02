@@ -1,12 +1,12 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 
 module Text.Heredoc
     ( heredoc
     , heredocFile
     ) where
 
-import           Control.Arrow                       ((***))
+import           Control.Arrow                       (first, second)
 import           Data.List                           (intercalate)
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Quote           (QuasiQuoter (..))
@@ -87,7 +87,7 @@ line :: Parser (Indent, Line)
 line = (,) <$> indent <*> contents
 
 indent :: Parser Indent
-indent = fmap sum $
+indent = sum <$>
          many ((char ' ' >> pure 1) <|>
                (char '\t' >> fail "Tabs are not allowed in indentation"))
 
@@ -110,7 +110,7 @@ ctrlForall = CtrlForall <$> bindVal <*> expr <*> pure []
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlMaybe :: Parser Line
-ctrlMaybe = CtrlMaybe <$> pure False <*> bindVal <*> expr <*> pure [] <*> pure []
+ctrlMaybe = CtrlMaybe False <$> bindVal <*> expr <*> pure [] <*> pure []
     where
       bindVal = string "$maybe" *> spaceTabs *>
                 binding
@@ -120,7 +120,7 @@ ctrlNothing :: Parser Line
 ctrlNothing = string "$nothing" *> spaceTabs >> pure CtrlNothing
 
 ctrlIf :: Parser Line
-ctrlIf = CtrlIf <$> pure False <*> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure [] <*> pure []
+ctrlIf = CtrlIf False <$> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure [] <*> pure []
 
 ctrlElse :: Parser Line
 ctrlElse = string "$else" *> spaceTabs >> pure CtrlElse
@@ -231,7 +231,7 @@ quoted :: Parser InLine
 quoted = Quoted <$> (string "${" *> expr <* string "}")
 
 raw' :: Parser InLine
-raw' = Raw <$> ((:) <$> (char '$')
+raw' = Raw <$> ((:) <$> char '$'
                 <*> ((:) <$> noneOf "{" <*> many (noneOf "$\n\r")))
 
 raw :: Parser InLine
@@ -248,7 +248,7 @@ arrange = norm . rev . foldl (flip push) []
       isCtrlOf _             = False
 
       push :: Line' -> [Line'] -> [Line']
-      push x [] = x:[]
+      push x [] = [x]
       push x ss'@((_, Normal _):_) = x:ss'
 
       push x@(i, _) ss'@((j, CtrlForall b e body):ss)
@@ -291,7 +291,7 @@ arrange = norm . rev . foldl (flip push) []
 
       push' __@(_, CtrlOf e) alts = (e, []):alts
       push' _ []                  = error "$of not found"
-      push' x ((e, body):alts)    = (e, (push x body)):alts
+      push' x ((e, body):alts)    = (e, push x body):alts
 
       rev :: [Line'] -> [Line']
       rev = foldr (\x xs -> xs ++ [rev' x]) []
@@ -306,16 +306,16 @@ arrange = norm . rev . foldl (flip push) []
       rev' (i, CtrlIf flg e body alt)
           = (i, CtrlIf flg e (rev body) (rev alt))
       rev' (i, CtrlCase e alts)
-          = (i, CtrlCase e (map (id *** rev) $ reverse alts))
+          = (i, CtrlCase e (map (second rev) $ reverse alts))
       rev' (_, CtrlNothing)
           = error "impossible"
       rev' (_, CtrlElse)
           = error "impossible"
-      rev' (_, (CtrlOf _))
+      rev' (_, CtrlOf _)
           = error "impossible"
 
       norm :: [Line'] -> [Line']
-      norm = foldr (\x xs -> norm' x:xs) []
+      norm = map norm'
       norm' :: Line' -> Line'
       norm' x@(_, Normal _) = x
       norm' (i, CtrlForall b e body)
@@ -329,13 +329,13 @@ arrange = norm . rev . foldl (flip push) []
           = (i, CtrlIf flg e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
       norm' (_, CtrlElse) = error "orphan $else found"
       norm' (i, CtrlCase e alts)
-          = (i, CtrlCase e (map (id *** (++ blockEnd) . normsub i) alts))
+          = (i, CtrlCase e (map (second ((++ blockEnd) . normsub i)) alts))
       norm' (_, CtrlOf _) = error "orphan $of found"
 
       normsub :: Indent -> [Line'] -> [Line']
       normsub i body = let j = minimum $ map fst body
                            deIndent n = i+(n-j)
-                       in norm $ map (deIndent *** id) body
+                       in norm $ map (first deIndent) body
 
       blockEnd :: [Line']
       blockEnd = [(0, Normal [])]
@@ -366,9 +366,9 @@ instance ToQPat Expr where
                                        (concatToQPat xs)
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
     concatToQPat ((V v):_) = varP (mkName v) -- OK?
-    concatToQPat (p@(T _):[]) = toQPat p -- OK?
-    concatToQPat (W:[]) = wildP -- OK?
-    concatToQPat (p@(A _ _):[]) = toQPat p
+    concatToQPat [p@(T _)] = toQPat p -- OK?
+    concatToQPat [W] = wildP -- OK?
+    concatToQPat [p@(A _ _)] = toQPat p
     concatToQPat _ = error "don't support this pattern"
 
 class ToQExp a where
@@ -391,7 +391,7 @@ instance ToQExp Expr where
     toQExp (V' _)  = error "impossible"
     toQExp (O' _)  = error "impossible"
 
-    concatToQExp xs = concatToQ' Nothing xs
+    concatToQExp = concatToQ' Nothing
         where
           concatToQ' (Just acc) [] = acc
           concatToQ' Nothing  [x] = toQExp x
@@ -456,7 +456,7 @@ instance ToQExp Line where
     toQExp (Normal xs) = concatToQExp xs
     toQExp CtrlNothing = error "impossible"
 
-    concatToQExp (x:[]) = toQExp x
+    concatToQExp [x]    = toQExp x
     concatToQExp (x:xs) = infixE (Just (toQExp x))
                                  (varE '(<>))
                                  (Just (concatToQExp xs))
