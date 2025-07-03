@@ -87,7 +87,7 @@ line = (,) <$> indent <*> contents
 
 indent :: Parser Indent
 indent = sum <$>
-    many ((char ' ' >> pure 1) <|> (char '\t' >> fail "Tabs are not allowed in indentation"))
+    many ((char ' ' *> pure 1) <|> (char '\t' *> fail "Tabs are not allowed in indentation"))
 
 contents :: Parser Line
 contents = try ctrlForall
@@ -113,13 +113,13 @@ ctrlMaybe = CtrlMaybe False <$> bindVal <*> expr <*> pure [] <*> pure []
             string "$maybe" *> spaceTabs *> binding <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlNothing :: Parser Line
-ctrlNothing = string "$nothing" *> spaceTabs >> pure CtrlNothing
+ctrlNothing = string "$nothing" *> spaceTabs *> pure CtrlNothing
 
 ctrlIf :: Parser Line
 ctrlIf = CtrlIf False <$> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure [] <*> pure []
 
 ctrlElse :: Parser Line
-ctrlElse = string "$else" *> spaceTabs >> pure CtrlElse
+ctrlElse = string "$else" *> spaceTabs *> pure CtrlElse
 
 ctrlCase :: Parser Line
 ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
@@ -142,8 +142,8 @@ binding = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|> term)
         term :: Parser Expr
         term =
             ( T <$> tuple
-          <|> (try (nil >> pure N) <|> try (L <$> list) <|> try (O <$> string ":"))
-          <|> (try (V <$> ((<>) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|> try (wild >> pure W) <|> V <$> var)
+          <|> (try (nil *> pure N) <|> try (L <$> list) <|> try (O <$> string ":"))
+          <|> (try (V <$> ((<>) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|> try (wild *> pure W) <|> V <$> var)
           <|> C <$> con
             ) <* spaceTabs
 
@@ -154,10 +154,10 @@ expr = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|> term)
         term =
             ( S <$> str
           <|> T <$> tuple
-          <|> (try (nil >> pure N) <|> try (L <$> list) <|> try (O <$> op))
+          <|> (try (nil *> pure N) <|> try (L <$> list) <|> try (O <$> op))
           <|> (try (O' <$> op') <|> try (E <$> subexp))
           <|> V <$> var'
-          <|> (try (V <$> ((<>) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|> try (wild >> pure W) <|> V <$> var)
+          <|> (try (V <$> ((<>) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|> try (wild *> pure W) <|> V <$> var)
           <|> C <$> con
           <|> I <$> integer
             ) <* spaceTabs
@@ -176,7 +176,7 @@ str :: Parser String
 str = char '"' *> many quotedChar <* char '"'
     where
         quotedChar :: Parser Char
-        quotedChar = noneOf "\\\"" <|> try (string "\\\"" >> pure '"')
+        quotedChar = noneOf "\\\"" <|> try (string "\\\"" *> pure '"')
 
 subexp :: Parser [Expr]
 subexp = char '(' *> expr <* char ')'
