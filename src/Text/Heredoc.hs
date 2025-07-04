@@ -102,16 +102,10 @@ contents = try ctrlForall
        <|> normal
 
 ctrlForall :: Parser Line
-ctrlForall = CtrlForall <$> bindVal <*> expr <*> pure []
-    where
-        bindVal =
-            string "$forall" *> spaceTabs *> binding <* spaceTabs <* string "<-" <* spaceTabs
+ctrlForall = CtrlForall <$> (string "$forall" *> spaceTabs *> binding <* spaceTabs <* string "<-" <* spaceTabs) <*> expr <*> pure []
 
 ctrlMaybe :: Parser Line
-ctrlMaybe = CtrlMaybe False <$> bindVal <*> expr <*> pure [] <*> pure []
-    where
-        bindVal =
-            string "$maybe" *> spaceTabs *> binding <* spaceTabs <* string "<-" <* spaceTabs
+ctrlMaybe = CtrlMaybe False <$> (string "$maybe" *> spaceTabs *> binding <* spaceTabs <* string "<-" <* spaceTabs) <*> expr <*> pure [] <*> pure []
 
 ctrlNothing :: Parser Line
 ctrlNothing = string "$nothing" *> spaceTabs $> CtrlNothing
@@ -126,16 +120,10 @@ ctrlCase :: Parser Line
 ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
 
 ctrlOf :: Parser Line
-ctrlOf = CtrlOf <$> bindVal
-    where
-        bindVal =
-            string "$of" *> spaceTabs *> binding <* spaceTabs
+ctrlOf = CtrlOf <$> (string "$of" *> spaceTabs *> binding <* spaceTabs)
 
 ctrlLet :: Parser Line
-ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
-    where
-        bindVal =
-            string "$let" *> spaceTabs *> binding <* spaceTabs <* string "=" <* spaceTabs
+ctrlLet = CtrlLet <$> (string "$let" *> spaceTabs *> binding <* spaceTabs <* string "=" <* spaceTabs) <*> expr <*> pure []
 
 binding :: Parser [Expr]
 binding = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|> term)
@@ -174,10 +162,7 @@ integer :: Parser Integer
 integer = read <$> many1 digit
 
 str :: Parser String
-str = char '"' *> many quotedChar <* char '"'
-    where
-        quotedChar :: Parser Char
-        quotedChar = noneOf "\\\"" <|> try (string "\\\"" $> '"')
+str = char '"' *> many (noneOf "\\\"" <|> try (string "\\\"" $> '"')) <* char '"'
 
 subexp :: Parser [Expr]
 subexp = char '(' *> expr <* char ')'
