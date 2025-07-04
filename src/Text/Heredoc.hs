@@ -279,7 +279,7 @@ arrange = norm . rev . foldl (flip push) []
         push' x ((e, body):alts)    = (e, push x body):alts
 
         rev :: [Line'] -> [Line']
-        rev = foldr (\x xs -> xs ++ [rev' x]) []
+        rev = foldr (\x xs -> xs <> [rev' x]) []
         rev' :: Line' -> Line'
         rev' x@(_, Normal _) = x
         rev' (i, CtrlForall b e body)
@@ -306,19 +306,19 @@ arrange = norm . rev . foldl (flip push) []
                 norm' x@(_, Normal _) = x
 
                 norm' (i, CtrlForall b e body) =
-                    (i, CtrlForall b e (normsub i body ++ blockEnd))
+                    (i, CtrlForall b e (normsub i body <> blockEnd))
 
                 norm' (i, CtrlLet b e body) =
-                    (i, CtrlLet b e (normsub i body ++ blockEnd))
+                    (i, CtrlLet b e (normsub i body <> blockEnd))
 
                 norm' (i, CtrlMaybe flg b e body alt) =
-                    (i, CtrlMaybe flg b e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
+                    (i, CtrlMaybe flg b e (normsub i body <> blockEnd) (normsub i alt <> blockEnd))
 
                 norm' (i, CtrlIf flg e body alt) =
-                    (i, CtrlIf flg e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
+                    (i, CtrlIf flg e (normsub i body <> blockEnd) (normsub i alt <> blockEnd))
 
                 norm' (i, CtrlCase e alts) =
-                    (i, CtrlCase e (map (second ((++ blockEnd) . normsub i)) alts))
+                    (i, CtrlCase e (map (second ((<> blockEnd) . normsub i)) alts))
 
                 norm' (_, CtrlNothing) = error "orphan $nothing found"
                 norm' (_, CtrlElse)    = error "orphan $else found"
