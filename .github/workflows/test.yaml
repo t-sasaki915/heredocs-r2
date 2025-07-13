@@ -32,4 +32,4 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
     - name: Run tests
-      run: cabal update && cabal test
+      run: cabal v2-update && cabal v2-test
