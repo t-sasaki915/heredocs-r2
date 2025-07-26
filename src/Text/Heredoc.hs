@@ -25,7 +25,7 @@ heredoc = QuasiQuoter
 
 heredocFile :: FilePath -> Q Exp
 heredocFile fp = do
-    content <- runIO $ readFile fp
+    content <- runIO (readFile fp)
     heredocFromString content
 
 heredocFromString :: String -> Q Exp
